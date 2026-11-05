@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CFM2 Label</title>
+<link rel="stylesheet" href="/theme.css">
+<style>
+html, body { height: 100%; }
+body { display: flex; flex-direction: column; background: var(--sheet); }
+
+header { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; padding: 12px 24px; }
+h1 { font-size: 21px; line-height: 1.15; font-weight: 600; margin: 0; word-break: break-word; }
+.crumb { color: var(--ledger); font-size: 13px; display: block; margin-bottom: 1px; text-decoration: none; }
+.crumb::before { content: "‹ "; }
+.crumb:hover { text-decoration: underline; }
+.done-count { margin-left: auto; display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.done-count .bar { width: 120px; height: 6px; border-radius: 3px; background: var(--fill); overflow: hidden; }
+.done-count .bar i { display: block; height: 100%; border-radius: 3px; background: var(--ledger); width: 0; }
+.done-count b { color: var(--ink); font-weight: 600; }
+.head-actions { display: flex; gap: 8px; }
+.export, .check { white-space: nowrap; font-size: 14px; font-weight: 500; border: 0; border-radius: 980px; padding: 8px 18px; cursor: pointer; }
+.export { background: var(--ledger); color: #fff; }
+.export:hover { background: var(--ledger-hover); }
+.check { background: var(--fill); color: var(--ledger); }
+.check:hover { background: var(--ledger-soft); }
+.export[hidden], .check[hidden] { display: none; }
+.export:disabled { opacity: .5; cursor: wait; }
+.cfmRes { display: none; padding: 14px 24px; background: var(--ledger-soft); font-size: 14px; }
+.cfmRes.show { display: block; }
+.cfmRes.error { background: var(--stamp-soft); color: var(--stamp); }
+.cfmRes code { font: 12px/1.5 var(--mono); word-break: break-all; }
+.cfmRes ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 20px; }
+.cfmRes li b { font-weight: 600; }
+
+main {
+    flex: 1; min-height: 0; display: grid;
+    grid-template-columns: var(--list-w, 360px) 7px minmax(320px, 1fr) 7px var(--tree-w, 320px);
+}
+.split { cursor: col-resize; position: relative; background: none; touch-action: none; }
+.split::before { content: ""; position: absolute; inset: 0 3px; background: var(--rule); }
+.split:hover::before, .split:focus-visible::before, .split.dragging::before { inset: 0 2px; background: var(--ledger); }
+.split:focus-visible { outline: none; }
+body.resizing { cursor: col-resize; user-select: none; }
+
+/* Patterns list (left) */
+.list { display: flex; flex-direction: column; min-height: 0; background: var(--side); }
+.tools { padding: 14px 14px 10px; display: grid; gap: 10px; }
+.tools input[type=search] {
+    color: var(--ink); background: var(--fill); border: 1px solid transparent; border-radius: 10px;
+    padding: 8px 12px 8px 32px; width: 100%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2386868B' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='5'/%3E%3Cpath d='m11 11 3.5 3.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: 10px center;
+}
+.show-by { display: grid; grid-template-columns: repeat(3, 1fr); padding: 2px; gap: 2px; background: var(--fill); border-radius: 9px; }
+.show-by button {
+    font-size: 12px; font-weight: 500; padding: 5px 4px; border: 0; border-radius: 7px;
+    background: none; color: var(--ink); cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.show-by button[aria-pressed="true"] { background: var(--sheet); box-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 0 0 .5px rgba(0, 0, 0, .04); font-weight: 600; }
+.tools label { font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: center; cursor: pointer; padding: 0 2px; }
+.leaves { list-style: none; margin: 0; padding: 0 8px 16px; overflow-y: auto; flex: 1; }
+.row { display: grid; grid-template-columns: 34px 1fr; border-radius: 10px; margin-bottom: 2px; }
+.row:hover { background: var(--fill); }
+.row.picked { background: var(--ledger); color: #fff; }
+.row.picked .leaf .n, .row.picked .leaf .tags { color: rgba(255, 255, 255, .85); }
+.pick { display: grid; place-items: center; cursor: pointer; }
+.pick input, .tools input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--ledger); cursor: pointer; margin: 0; }
+.row.picked .pick input { accent-color: #fff; }
+.leaf {
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; width: 100%; min-width: 0;
+    padding: 10px 12px 10px 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer;
+}
+.leaf .text { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.leaf .n { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.leaf .tags { grid-column: 1 / -1; font-size: 12px; color: var(--ledger); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.leaf .tags:empty::before { content: "No label yet"; color: var(--faint); }
+.empty-list { padding: 24px 16px; color: var(--muted); font-size: 14px; }
+
+/* Pattern detail (middle) */
+.detail { overflow-y: auto; min-height: 0; background: var(--paper); }
+.detail-inner { max-width: 880px; padding: 36px 40px 72px; }
+.placeholder-text { color: var(--muted); padding: 64px 40px; max-width: 520px; font-size: 17px; }
+
+h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 12px; font-family: var(--font); }
+.pattern { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 36px; padding: 0; list-style: none; counter-reset: slot; }
+.pattern li {
+    counter-increment: slot;
+    padding: 9px 14px 9px; background: var(--sheet); border-radius: 12px; box-shadow: var(--shadow);
+    font: 500 14px/1.2 var(--mono); letter-spacing: 0;
+}
+.pattern li::before { content: counter(slot); display: block; font: 500 10px/1 var(--font); color: var(--faint); margin-bottom: 5px; }
+.pattern .none { color: var(--muted); font-size: 14px; }
+
+.labels { margin-bottom: 40px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; min-height: 0; }
+.chip { display: inline-flex; align-items: center; background: var(--ledger); color: #fff; padding: 6px 14px; border-radius: 980px; font-size: 14px; font-weight: 500; }
+.chip .x {
+    display: inline-grid; place-items: center; width: 18px; height: 18px; margin: 0 -6px 0 8px; padding: 0;
+    border: 0; border-radius: 50%; background: rgba(255, 255, 255, .25); color: inherit; font-size: 13px; line-height: 1; cursor: pointer;
+}
+.chip .x:hover, .chip .x:focus-visible { background: rgba(255, 255, 255, .45); }
+.chip .x:disabled { cursor: wait; }
+.chip small { font-weight: 400; opacity: .8; margin-left: 4px; }
+.chip.some { background: var(--ledger-soft); color: var(--ledger); }
+.chip.some .x { background: color-mix(in srgb, var(--ledger) 15%, transparent); }
+.chip.new { animation: pop .3s cubic-bezier(.2, .9, .3, 1.3); }
+@keyframes pop { from { transform: scale(.8); opacity: 0; } }
+.add { display: flex; gap: 8px; max-width: 560px; }
+.add input { flex: 1; color: var(--ink); background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; padding: 11px 14px; }
+.add button { font-weight: 500; border: 0; border-radius: 980px; padding: 0 22px; background: var(--ledger); color: #fff; cursor: pointer; }
+.add button:hover:not(:disabled) { background: var(--ledger-hover); }
+.add button:disabled { background: var(--fill); color: var(--faint); cursor: not-allowed; }
+.note { font-size: 13px; color: var(--muted); margin: 8px 0 0; min-height: 1.5em; }
+.note.error { color: var(--stamp); }
+
+.selection-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+.selection-head h2 { font: 700 28px/1.15 var(--display); letter-spacing: -0.02em; text-transform: none; color: var(--ink); margin: 0; }
+.selection-head h2 span { font-weight: 400; color: var(--muted); font-size: 17px; }
+.link { font-size: 14px; border: 0; background: none; color: var(--ledger); cursor: pointer; padding: 0; }
+.link:hover { text-decoration: underline; }
+.picked-pattern { margin-bottom: 28px; }
+.picked-pattern .pattern { margin-bottom: 10px; }
+.picked-pattern .pattern li { font-size: 12px; padding: 6px 10px; }
+.picked-pattern .meta { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+.picked-pattern .meta b { color: var(--ledger); font-weight: 600; }
+.more { color: var(--muted); font-size: 14px; margin-top: 12px; }
+.messages { list-style: none; margin: 0; padding: 0 20px; background: var(--sheet); border-radius: 14px; box-shadow: var(--shadow); }
+.messages li { padding: 14px 0; border-bottom: 1px solid var(--rule); font-size: 15px; }
+.messages li:last-child { border-bottom: 0; }
+
+/* Label tree (right) */
+.tree { background: var(--side); overflow-y: auto; min-height: 0; padding: 20px 10px 32px; }
+.tree h2 { padding: 0 10px; }
+.tree [role=tree], .tree [role=group] { list-style: none; margin: 0; padding: 0; }
+.tree [role=group] { margin-left: 17px; border-left: 1px solid var(--rule); padding-left: 2px; }
+.tree [role=treeitem] { outline: none; }
+.tree [role=treeitem][aria-expanded="false"] > [role=group] { display: none; }
+.t-row {
+    display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 4px; align-items: baseline;
+    padding: 5px 10px 5px 4px; border-radius: 8px; cursor: pointer; font-size: 14px;
+}
+.t-row:hover { background: var(--fill); }
+[role=treeitem]:focus-visible > .t-row { box-shadow: inset 0 0 0 2px var(--focus); }
+[role=treeitem][aria-selected="true"] > .t-row { background: var(--ledger); color: #fff; }
+[role=treeitem][aria-selected="true"] > .t-row .t-count, [role=treeitem][aria-selected="true"] > .t-row .caret { color: rgba(255, 255, 255, .8); }
+.caret { width: 18px; text-align: center; color: var(--faint); font-size: 10px; transition: transform .2s; user-select: none; }
+[aria-expanded="true"] > .t-row .caret { transform: rotate(90deg); }
+.t-name { font-weight: 500; overflow-wrap: anywhere; }
+.t-root > .t-row .t-name { font-weight: 600; }
+.t-none > .t-row .t-name { color: var(--stamp); }
+.t-pattern > .t-row .t-name { font-weight: 400; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-count { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .caret { transition: none; } }
+.tree .hint { font-size: 12px; color: var(--faint); padding: 0 10px; margin: -4px 0 14px; line-height: 1.45; }
+
+.error-box { margin: 24px; background: var(--stamp-soft); color: var(--stamp); border-radius: 14px; padding: 14px 16px; }
+
+@media (max-width: 820px) {
+    body { height: auto; display: block; }
+    header { padding: 12px 16px; }
+    .done-count { margin-left: 0; width: 100%; flex-wrap: wrap; }
+    .done-count .bar { flex: 1; width: auto; min-width: 60px; }
+    .head-actions { width: 100%; }
+    .head-actions button { flex: 1; }
+    main { display: block; }
+    .split { display: none; }
+    .leaves { max-height: 45vh; }
+    .detail-inner { padding: 24px 16px 48px; }
+    .placeholder-text { padding: 24px 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .chip.new { animation: none; } }
+</style>
+</head>
+<body>
+<header class="glass">
+    <div><a class="crumb" href="/">Projects</a><h1 id="projectName">Label</h1></div>
+    <div class="done-count"><span id="doneText"></span><span class="bar"><i id="doneBar"></i></span>
+        <span class="head-actions"><button class="export" id="export" type="button" hidden>Export CFMRes</button>
+        <button class="check" id="check" type="button" hidden>Check classifier</button></span></div>
+</header>
+<div class="cfmRes" id="cfmRes" role="status"></div>
+
+<main id="main">
+    <section class="list" aria-label="Patterns">
+        <div class="tools">
+            <input type="search" id="filter" placeholder="Find a message or label" aria-label="Find a message or label">
+            <div class="show-by" id="showBy" role="group" aria-label="Show patterns">
+                <button type="button" data-show="all" aria-pressed="true">All</button>
+                <button type="button" data-show="todo" aria-pressed="false">Not labelled</button>
+                <button type="button" data-show="done" aria-pressed="false">Labelled</button>
+            </div>
+            <label><input type="checkbox" id="pickAll"> Select all shown</label>
+        </div>
+        <ul class="leaves" id="leaves" role="listbox" aria-label="Patterns"></ul>
+    </section>
+    <div class="split" id="splitList" role="separator" aria-orientation="vertical" aria-label="Resize the patterns list" tabindex="0"></div>
+    <section class="detail" id="detail" aria-live="polite">
+        <p class="placeholder-text">Pick a pattern on the left to see its messages and give it labels. Tick more patterns to label them together. The up and down keys move between patterns.</p>
+    </section>
+    <div class="split" id="splitTree" role="separator" aria-orientation="vertical" aria-label="Resize the label tree" tabindex="0"></div>
+    <aside class="tree" aria-label="Label tree">
+        <h2>Labels</h2>
+        <p class="hint">Click a label to select its patterns, a pattern to open it. Arrow keys move, open and close. Numbers: patterns · messages.</p>
+        <div id="tree"></div>
+    </aside>
+</main>
+
+<datalist id="known"></datalist>
+<script src="/classifier.js"></script>
+
+<script>
+const $ = id => document.getElementById(id);
+const escape = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = n => n.toLocaleString();
+const slot = p => p.replace(/[<>]/g, '').toLowerCase().replace(/_/g, ' ');
+
+const projectId = new URLSearchParams(location.search).get('project');
+const api = `/api/projects/${encodeURIComponent(projectId)}`;
+let leaves = [];        // the project's leaves, biggest groups first
+let projectName = '';
+const picked = new Set(); // paths of the ticked leaves: one is shown on its own, more are labelled together
+let show = 'all';       // list filter: all, todo (not labelled) or done (labelled)
+const kept = new Set(); // labelled since the filter was picked: they stay in the list until the filter changes
+let lastPick = null;    // last pattern clicked, for shift click ranges
+
+async function load() {
+    if (!projectId) { location.replace('/'); return; }
+    const res = await fetch(`${api}/leaves`);
+    const body = await res.json();
+    if (!res.ok) {
+        $('main').innerHTML = `<div class="error-box">This project could not be opened: ${escape(body.error)}. Pick one from the <a href="/">projects</a> list.</div>`;
+        return;
+    }
+    document.title = `${body.project.name} - CFM2`;
+    $('projectName').textContent = body.project.name;
+    projectName = body.project.name;
+    $('check').hidden = !body.project.cfmRes;
+    leaves = body.leaves.sort((a, b) => b.messages.length - a.messages.length);
+    if (leaves.length) pickOnly(leaves[0].path);
+    drawList();
+    drawCount();
+    drawKnown();
+    drawDetail(false);
+}
+
+// Leaves shown with the search and the All / Not labelled / Labelled filter applied.
+function visible() {
+    const q = $('filter').value.trim().toLowerCase();
+    const wanted = l => show === 'all' || (show === 'done') === l.labels.length > 0 || kept.has(l.path);
+    return leaves.filter(l => wanted(l)
+        && (!q || l.labels.some(x => x.toLowerCase().includes(q)) || l.messages.some(m => m.toLowerCase().includes(q))));
+}
+
+function drawList() {
+    const shown = visible();
+    const done = leaves.filter(l => l.labels.length).length;
+    const counts = { all: leaves.length, todo: leaves.length - done, done };
+    for (const b of $('showBy').querySelectorAll('button')) {
+        b.setAttribute('aria-pressed', b.dataset.show === show);
+        b.textContent = `${{ all: 'All', todo: 'Not labelled', done: 'Labelled' }[b.dataset.show]} ${fmt(counts[b.dataset.show])}`;
+    }
+    const top = $('leaves').scrollTop;
+    $('leaves').innerHTML = shown.length ? shown.map(l => `
+        <li class="row${picked.has(l.path) ? ' picked' : ''}" data-path="${l.path}">
+            <label class="pick"><input type="checkbox" data-path="${l.path}" ${picked.has(l.path) ? 'checked' : ''} aria-label="Select this pattern"></label>
+            <button class="leaf" role="option" data-path="${l.path}" aria-selected="${picked.has(l.path)}">
+                <span class="text">${escape(l.messages[0] || '')}</span>
+                <span class="n">${fmt(l.messages.length)}</span>
+                <span class="tags">${escape(l.labels.join(', '))}</span>
+            </button></li>`).join('')
+        : `<li class="empty-list">${leaves.length ? 'No pattern matches. Clear the search or show all patterns.' : 'This project has no patterns to label.'}</li>`;
+    $('leaves').scrollTop = top;
+    drawTree();
+    const shownPicked = shown.filter(l => picked.has(l.path)).length;
+    $('pickAll').checked = shown.length > 0 && shownPicked === shown.length;
+    $('pickAll').indeterminate = shownPicked > 0 && shownPicked < shown.length;
+}
+
+function pickOnly(path) {
+    treeLabel = null;
+    picked.clear();
+    picked.add(path);
+    lastPick = path;
+}
+
+// Patterns labelled out of all; at 100% the CFMRes can be exported.
+function drawCount() {
+    const done = leaves.filter(l => l.labels.length).length;
+    const pct = leaves.length ? Math.floor(done / leaves.length * 100) : 0;
+    $('doneText').innerHTML = `${fmt(done)} of ${fmt(leaves.length)} patterns labelled, <b>${pct}% done</b>`;
+    $('doneBar').style.width = pct + '%';
+    $('export').hidden = !leaves.length || done < leaves.length;
+}
+
+// Writes the CFMRes: patterns.json and labels.dat.
+$('export').addEventListener('click', async () => {
+    $('export').disabled = true;
+    const box = $('cfmRes');
+    try {
+        const res = await fetch(`${api}/cfmres`, { method: 'POST' });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error);
+        box.className = 'cfmRes show';
+        box.innerHTML = `CFMRes exported to <code>${escape(body.file)}</code>, next to its placeholder.dat: ${fmt(body.patterns)} patterns in ${fmt(body.labels.length)} labels.
+            <button class="link" type="button" id="checkNow">Check classifier</button>
+            <ul>${body.labels.map(l => `<li><b>${escape(l.label)}</b> ${fmt(l.patterns)} ${l.patterns === 1 ? 'pattern' : 'patterns'}, ${fmt(l.messages)} messages</li>`).join('')}</ul>`;
+        $('check').hidden = false;
+        $('checkNow').addEventListener('click', () => openClassifier(projectId, projectName));
+    } catch (err) {
+        box.className = 'cfmRes show error';
+        box.textContent = `CFMRes not exported: ${err.message}.`;
+    } finally {
+        $('export').disabled = false;
+    }
+});
+
+$('check').addEventListener('click', () => openClassifier(projectId, projectName));
+
+// Every label used so far, offered while typing; the label tree is drawn with it.
+function drawKnown() {
+    const all = [...new Set(leaves.flatMap(l => l.labels))].sort();
+    $('known').innerHTML = all.map(x => `<option value="${escape(x)}">`).join('');
+    drawTree();
+}
+
+// Label tree: a label sits under the smallest label that all its patterns also have (a narrow label under a broader one).
+let treeLabel = null;      // label whose patterns were selected from the tree
+const treeOpen = new Set(); // keys of open tree items
+let treeFocus = null;      // key of the item that takes the keyboard focus (roving tabindex)
+
+function drawTree() {
+    const of = new Map();
+    for (const l of leaves) for (const x of l.labels) (of.get(x) || of.set(x, new Set()).get(x)).add(l.path);
+    const parentOf = new Map();
+    for (const [x, set] of of) {
+        let parent = null;
+        for (const [y, other] of of) {
+            if (y === x || other.size < set.size || (other.size === set.size && y > x)) continue;
+            if ([...set].every(p => other.has(p)) && (!parent || other.size < of.get(parent).size)) parent = y;
+        }
+        parentOf.set(x, parent);
+    }
+    const messagesOf = set => leaves.reduce((n, l) => n + (set.has(l.path) ? l.messages.length : 0), 0);
+    const bySize = (a, b) => messagesOf(of.get(b)) - messagesOf(of.get(a)) || a.localeCompare(b);
+    const roots = [...of.keys()].filter(x => !parentOf.get(x)).sort(bySize);
+
+    const item = ({ key, level, cls, name, count, selected, children = '', label, path }) => {
+        const open = children ? treeOpen.has(key) : null;
+        return `<li role="treeitem" class="${cls}" data-key="${escape(key)}" aria-level="${level}" aria-selected="${selected}"
+                ${open === null ? '' : `aria-expanded="${open}"`} tabindex="-1"
+                ${label !== undefined ? `data-label="${escape(label)}"` : ''} ${path ? `data-path="${path}"` : ''}>
+            <div class="t-row"><span class="caret" aria-hidden="true">${children ? '▶' : ''}</span>
+                <span class="t-name">${name}</span><span class="t-count">${count}</span></div>
+            ${children ? `<ul role="group">${children}</ul>` : ''}</li>`;
+    };
+    const patternItems = (list, level, under) => list.sort((a, b) => b.messages.length - a.messages.length).map(l => item({
+        key: `p:${under}:${l.path}`, level, cls: 't-pattern', name: escape(l.messages[0] || ''), path: l.path,
+        count: fmt(l.messages.length), selected: picked.has(l.path) && treeLabel === null,
+    })).join('');
+    const labelItem = (x, level) => {
+        const kids = [...of.keys()].filter(y => parentOf.get(y) === x).sort(bySize);
+        const own = leaves.filter(l => of.get(x).has(l.path) && !kids.some(k => of.get(k).has(l.path)));
+        return item({
+            key: `l:${x}`, level, cls: level === 1 ? 't-root' : 't-label', name: escape(x).replace(/_/g, '_<wbr>'), label: x,
+            count: `${fmt(of.get(x).size)} · ${fmt(messagesOf(of.get(x)))}`, selected: x === treeLabel,
+            children: kids.map(k => labelItem(k, level + 1)).join('') + patternItems(own, level + 1, x),
+        });
+    };
+    const none = leaves.filter(l => !l.labels.length);
+    const items = roots.map(x => labelItem(x, 1)).join('') + (none.length ? item({
+        key: 'l:', level: 1, cls: 't-root t-none', name: 'No label yet', label: '', selected: treeLabel === '',
+        count: `${fmt(none.length)} · ${fmt(none.reduce((n, l) => n + l.messages.length, 0))}`, children: patternItems(none, 2, ''),
+    }) : '');
+
+    const hadFocus = $('tree').contains(document.activeElement);
+    $('tree').innerHTML = items
+        ? `<ul role="tree" aria-label="Labels" title="patterns · messages">${items}</ul>`
+        : '<p class="hint">No patterns yet.</p>';
+    const all = [...$('tree').querySelectorAll('[role=treeitem]')];
+    const focus = all.find(el => el.dataset.key === treeFocus) || all[0];
+    if (focus) {
+        focus.tabIndex = 0;
+        treeFocus = focus.dataset.key;
+        if (hadFocus) focus.focus({ preventScroll: true });
+    }
+}
+
+// Tree items that can be seen (their parents are open), in order.
+const shownItems = () => [...$('tree').querySelectorAll('[role=treeitem]')].filter(el => el.offsetParent !== null);
+
+function focusItem(el) {
+    if (!el) return;
+    for (const other of $('tree').querySelectorAll('[tabindex="0"]')) other.tabIndex = -1;
+    el.tabIndex = 0;
+    treeFocus = el.dataset.key;
+    el.focus();
+    el.scrollIntoView({ block: 'nearest' });
+}
+
+function toggleItem(el, open = el.getAttribute('aria-expanded') !== 'true') {
+    if (!el.hasAttribute('aria-expanded')) return;
+    if (open) treeOpen.add(el.dataset.key); else treeOpen.delete(el.dataset.key);
+    el.setAttribute('aria-expanded', open);
+}
+
+// A label selects every pattern that has it ("No label yet": every unlabelled one); a pattern is opened alone.
+function activateItem(el) {
+    treeFocus = el.dataset.key;
+    if (el.dataset.path) {
+        pickOnly(el.dataset.path);
+    } else {
+        treeLabel = el.dataset.label;
+        const list = leaves.filter(l => treeLabel ? l.labels.includes(treeLabel) : !l.labels.length);
+        picked.clear();
+        for (const l of list) picked.add(l.path);
+        lastPick = list[0]?.path ?? null;
+    }
+    drawList();
+    drawDetail(false);
+    document.querySelector('.row.picked')?.scrollIntoView({ block: 'nearest' });
+    focusItem($('tree').querySelector(`[data-key="${CSS.escape(treeFocus)}"]`));
+}
+
+$('tree').addEventListener('click', e => {
+    const el = e.target.closest('[role=treeitem]');
+    if (!el) return;
+    if (e.target.closest('.caret')) { toggleItem(el); focusItem(el); return; }
+    activateItem(el);
+});
+$('tree').addEventListener('dblclick', e => {
+    const el = e.target.closest('[role=treeitem]');
+    if (el && !e.target.closest('.caret')) toggleItem(el);
+});
+$('tree').addEventListener('keydown', e => {
+    const el = e.target.closest('[role=treeitem]');
+    if (!el) return;
+    const shown = shownItems();
+    const i = shown.indexOf(el);
+    const open = el.getAttribute('aria-expanded');
+    const parent = el.parentElement.closest('[role=treeitem]');
+    const keys = {
+        ArrowDown: () => focusItem(shown[i + 1]),
+        ArrowUp: () => focusItem(shown[i - 1]),
+        Home: () => focusItem(shown[0]),
+        End: () => focusItem(shown.at(-1)),
+        ArrowRight: () => open === 'false' ? toggleItem(el, true) : open === 'true' && focusItem(shown[i + 1]),
+        ArrowLeft: () => open === 'true' ? toggleItem(el, false) : focusItem(parent),
+        Enter: () => activateItem(el),
+        ' ': () => activateItem(el),
+    };
+    if (!keys[e.key]) return;
+    e.preventDefault();
+    e.stopPropagation();
+    keys[e.key]();
+});
+
+// Column widths: drag a splitter (or focus it and use the arrow keys); kept for this browser.
+const WIDTHS = { list: [220, 720, 360], tree: [200, 640, 320] };
+function setWidth(side, px) {
+    const [min, max] = WIDTHS[side];
+    const w = Math.round(Math.min(max, Math.max(min, px)));
+    $('main').style.setProperty(`--${side}-w`, `${w}px`);
+    const split = $(side === 'list' ? 'splitList' : 'splitTree');
+    split.setAttribute('aria-valuenow', w);
+    split.setAttribute('aria-valuemin', min);
+    split.setAttribute('aria-valuemax', max);
+    return w;
+}
+const widthKey = side => `cfm2.label.${side}-w`;
+for (const side of ['list', 'tree']) {
+    let saved = null;
+    try { saved = Number(localStorage.getItem(widthKey(side))) || null; } catch {}
+    setWidth(side, saved || WIDTHS[side][2]);
+    const split = $(side === 'list' ? 'splitList' : 'splitTree');
+    const save = w => { try { localStorage.setItem(widthKey(side), w); } catch {} };
+    split.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        split.setPointerCapture(e.pointerId);
+        split.classList.add('dragging');
+        document.body.classList.add('resizing');
+        const box = $('main').getBoundingClientRect();
+        const move = ev => setWidth(side, side === 'list' ? ev.clientX - box.left : box.right - ev.clientX);
+        const up = ev => {
+            save(setWidth(side, side === 'list' ? ev.clientX - box.left : box.right - ev.clientX));
+            split.classList.remove('dragging');
+            document.body.classList.remove('resizing');
+            split.removeEventListener('pointermove', move);
+            split.removeEventListener('pointerup', up);
+        };
+        split.addEventListener('pointermove', move);
+        split.addEventListener('pointerup', up);
+    });
+    split.addEventListener('keydown', e => {
+        const step = { ArrowLeft: -16, ArrowRight: 16 }[e.key];
+        if (!step) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const now = Number(split.getAttribute('aria-valuenow'));
+        save(setWidth(side, now + (side === 'list' ? step : -step)));
+    });
+    split.addEventListener('dblclick', () => save(setWidth(side, WIDTHS[side][2])));
+}
+
+const patternChips = pattern => `<ol class="pattern">${pattern.length
+    ? pattern.map(p => `<li>${escape(slot(p))}</li>`).join('')
+    : '<li class="none">No values, only words</li>'}</ol>`;
+const plural = (n, word) => `${fmt(n)} ${word}${n === 1 ? '' : 's'}`;
+// At most this many messages per pattern when several patterns are shown.
+const MESSAGES_EACH = 5;
+
+// Right side: the ticked pattern on its own, or the ticked patterns together. Both label the same way.
+function drawDetail(focus = true, fresh) {
+    const list = leaves.filter(l => picked.has(l.path));
+    if (!list.length) {
+        $('detail').innerHTML = `<p class="placeholder-text">Pick a pattern on the left to see its messages and give it labels. Tick more patterns to label them together.</p>`;
+        return;
+    }
+    // Labels on the ticked patterns; with more than one, how many of them have each.
+    const counts = new Map();
+    for (const l of list) for (const x of l.labels) counts.set(x, (counts.get(x) || 0) + 1);
+    const labelChips = [...counts].map(([x, n]) => `<span class="chip${n < list.length ? ' some' : ''}${x === fresh ? ' new' : ''}">${escape(x)}${list.length > 1 ? `<small>${n === list.length ? 'all' : `${n} of ${list.length}`}</small>` : ''}<button class="x" type="button" data-label="${escape(x)}" aria-label="Remove ${escape(x)}${list.length > 1 ? ` from ${n === 1 ? 'the pattern' : `the ${n} patterns`} that have it` : ''}" title="Remove label">×</button></span>`).join('');
+    const one = list.length === 1;
+    const messages = list.reduce((n, l) => n + l.messages.length, 0);
+
+    $('detail').innerHTML = `<div class="detail-inner">
+        ${one ? `<h2>Pattern</h2>${patternChips(list[0].pattern)}` : `<div class="selection-head">
+            <h2>${plural(list.length, 'pattern')} selected <span>${plural(messages, 'message')}</span></h2>
+            <button class="link" type="button" id="clearPicks">Clear selection</button></div>`}
+
+        <div class="labels">
+            <h2>Labels</h2>
+            <div class="chips">${labelChips}</div>
+            <form class="add" id="add">
+                <input id="label" list="known" autocomplete="off" placeholder="${one ? 'Type a label and press Enter' : `Label all ${list.length} patterns and press Enter`}" aria-label="New label">
+                <button type="submit">${one ? 'Add label' : 'Add to all'}</button>
+            </form>
+            <p class="note" id="note">${counts.size ? '' : one ? 'This pattern has no label yet.' : 'None of these patterns has a label yet.'}</p>
+        </div>
+
+        ${one ? `<h2>${plural(messages, 'message')}</h2>
+            <ul class="messages">${list[0].messages.map(m => `<li>${escape(m)}</li>`).join('')}</ul>`
+        : list.map(l => `<section class="picked-pattern">
+            <p class="meta">${plural(l.messages.length, 'message')}${l.labels.length ? `, labelled <b>${escape(l.labels.join(', '))}</b>` : ', no label yet'}</p>
+            ${patternChips(l.pattern)}
+            <ul class="messages">${l.messages.slice(0, MESSAGES_EACH).map(m => `<li>${escape(m)}</li>`).join('')}</ul>
+            ${l.messages.length > MESSAGES_EACH ? `<p class="more">and ${plural(l.messages.length - MESSAGES_EACH, 'more message')}</p>` : ''}
+        </section>`).join('')}
+    </div>`;
+    if (!fresh) $('detail').scrollTop = 0;
+    $('add').addEventListener('submit', e => { e.preventDefault(); addLabel(list); });
+    for (const x of $('detail').querySelectorAll('.chip .x')) x.addEventListener('click', () => removeLabel(list, x));
+    $('clearPicks')?.addEventListener('click', () => { picked.clear(); drawList(); drawDetail(); });
+    if (focus) $('label').focus();
+}
+
+// Adds the typed label to every ticked pattern, in one request.
+async function addLabel(list) {
+    const input = $('label');
+    const label = input.value.trim();
+    if (!label) return;
+    if (list.every(l => l.labels.includes(label))) {
+        $('note').className = 'note';
+        $('note').textContent = `"${label}" is already on ${list.length === 1 ? 'this pattern' : 'all of them'}.`;
+        return input.select();
+    }
+    input.disabled = true;
+    try {
+        const res = await fetch(`${api}/label`, { method: 'POST', body: JSON.stringify({ paths: list.map(l => l.path), label }) });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error);
+        for (const { path, labels } of body.leaves) { leaves.find(l => l.path === path).labels = labels; kept.add(path); }
+        drawList();
+        drawCount();
+        drawKnown();
+        drawDetail(true, body.label);
+        $('note').textContent = `Added "${body.label}"${list.length > 1 ? ` to ${plural(list.length, 'pattern')}` : ''}.`;
+    } catch (err) {
+        $('note').className = 'note error';
+        $('note').textContent = `Label not saved: ${err.message}. Try again, or reload the page if the patterns changed.`;
+        input.disabled = false;
+        input.focus();
+    }
+}
+
+// Takes a label off every ticked pattern that has it, in one request.
+async function removeLabel(list, button) {
+    const label = button.dataset.label;
+    const paths = list.filter(l => l.labels.includes(label)).map(l => l.path);
+    button.disabled = true;
+    try {
+        const res = await fetch(`${api}/label`, { method: 'DELETE', body: JSON.stringify({ paths, label }) });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error);
+        for (const { path, labels } of body.leaves) { leaves.find(l => l.path === path).labels = labels; kept.add(path); }
+        drawList();
+        drawCount();
+        drawKnown();
+        drawDetail(false);
+        $('note').className = 'note';
+        $('note').textContent = `Removed "${label}"${paths.length > 1 ? ` from ${plural(paths.length, 'pattern')}` : ''}.`;
+    } catch (err) {
+        button.disabled = false;
+        $('note').className = 'note error';
+        $('note').textContent = `Label not removed: ${err.message}.`;
+    }
+}
+
+// Click shows one pattern; the checkbox ticks it; shift click ticks a range.
+$('leaves').addEventListener('click', e => {
+    const b = e.target.closest('.leaf');
+    if (!b) return;
+    pickOnly(b.dataset.path);
+    drawList();
+    drawDetail();
+});
+let shiftPick = false;
+$('leaves').addEventListener('click', e => { if (e.target.matches('input[type=checkbox]')) shiftPick = e.shiftKey; }, true);
+$('leaves').addEventListener('change', e => {
+    const box = e.target;
+    const shown = visible().map(l => l.path);
+    const from = shown.indexOf(lastPick), to = shown.indexOf(box.dataset.path);
+    const paths = shiftPick && from !== -1 ? shown.slice(Math.min(from, to), Math.max(from, to) + 1) : [box.dataset.path];
+    for (const path of paths) box.checked ? picked.add(path) : picked.delete(path);
+    lastPick = box.dataset.path;
+    treeLabel = null;
+    drawList();
+    drawDetail(false);
+});
+$('pickAll').addEventListener('change', e => {
+    for (const l of visible()) e.target.checked ? picked.add(l.path) : picked.delete(l.path);
+    drawList();
+    drawDetail(false);
+});
+// Up / down show the next or previous pattern on its own (also from the label box when it is empty).
+document.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    if (e.target.matches('input[type=search]') || (e.target.id === 'label' && e.target.value)) return;
+    const shown = visible();
+    if (!shown.length) return;
+    e.preventDefault();
+    const i = shown.findIndex(l => l.path === lastPick);
+    const next = shown[Math.max(0, Math.min(shown.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))];
+    pickOnly(next.path);
+    drawList();
+    drawDetail(e.target.id === 'label');
+    document.querySelector(`.row[data-path="${next.path}"]`)?.scrollIntoView({ block: 'nearest' });
+});
+$('filter').addEventListener('input', drawList);
+$('showBy').addEventListener('click', e => {
+    const button = e.target.closest('button[data-show]');
+    if (!button) return;
+    show = button.dataset.show;
+    kept.clear();
+    drawList();
+});
+
+load().catch(err => { $('main').innerHTML = `<div class="error-box">Could not load patterns: ${escape(err.message)}. Check that the server is running.</div>`; });
+</script>
+</body>
+</html>

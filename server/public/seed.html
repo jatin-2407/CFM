@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CFM2 New Project</title>
+<link rel="stylesheet" href="/theme.css">
+<style>
+.page { max-width: 1080px; margin: 0 auto; padding: 56px 24px 96px; }
+header { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 44px; max-width: 720px; }
+.crumb { color: var(--ledger); font-size: 15px; text-decoration: none; }
+.crumb::before { content: "‹ "; }
+.crumb:hover { text-decoration: underline; }
+h1 { font-size: 48px; line-height: 1.08; font-weight: 700; letter-spacing: -0.03em; margin: 0; }
+header p { margin: 4px 0 0; color: var(--muted); font-size: 19px; line-height: 1.42; letter-spacing: -0.015em; }
+
+.layout { display: grid; grid-template-columns: 360px 1fr; gap: 28px; align-items: start; }
+.layout > * { min-width: 0; }
+.layout > section { background: var(--sheet); border-radius: 22px; box-shadow: var(--shadow); padding: 28px 32px; }
+
+.source { background: var(--sheet); border-radius: 22px; box-shadow: var(--shadow); padding: 28px; }
+h2 { font-size: 19px; font-weight: 600; margin: 0 0 12px; }
+.name-field { display: grid; gap: 8px; margin-bottom: 24px; font-weight: 600; font-size: 15px; }
+.name-field input {
+    font-weight: 400; color: var(--ink); background: var(--paper); border: 1px solid transparent;
+    border-radius: 12px; padding: 11px 14px; width: 100%;
+}
+
+.drop {
+    display: block; position: relative; border: 2px dashed var(--rule); border-radius: 16px; padding: 32px 16px;
+    text-align: center; cursor: pointer; color: var(--muted); background: var(--side);
+}
+.drop::before {
+    content: ""; display: block; width: 34px; height: 34px; margin: 0 auto 12px; background: var(--ledger);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 15V4m0 0L7.5 8.5M12 4l4.5 4.5'/%3E%3Cpath d='M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 15V4m0 0L7.5 8.5M12 4l4.5 4.5'/%3E%3Cpath d='M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.drop:hover, .drop.over { border-color: var(--ledger); background: var(--ledger-soft); }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.drop:focus-within { box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 25%, transparent); border-color: var(--ledger); }
+.drop strong { display: block; color: var(--ink); font-size: 17px; font-weight: 600; margin-bottom: 2px; word-break: break-all; }
+
+.preview { margin: 16px 0 0; padding: 4px 14px; list-style: none; background: var(--paper); border-radius: 12px; }
+.preview li {
+    font: 400 12px/1.45 var(--mono); padding: 8px 0; border-bottom: 1px solid var(--rule);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.preview li:last-child { border-bottom: 0; }
+.preview li.more { font-family: var(--font); font-size: 13px; color: var(--muted); }
+
+p.again { margin: 0 0 20px; padding: 14px 16px; border-radius: 14px; background: var(--stamp-soft); color: var(--ink); font-size: 14px; }
+p.again[hidden] { display: none; }
+
+details { margin-top: 14px; }
+summary { cursor: pointer; font-weight: 500; padding: 4px 0; }
+
+.run {
+    margin-top: 22px; width: 100%; font-size: 17px; font-weight: 500; line-height: 1; padding: 15px;
+    border: 0; border-radius: 980px; background: var(--ledger); color: #fff; cursor: pointer;
+}
+.run:hover:not(:disabled) { background: var(--ledger-hover); }
+.run:disabled { background: var(--fill); color: var(--faint); cursor: not-allowed; }
+.hint { font-size: 13px; color: var(--muted); margin: 10px 0 0; text-align: center; min-height: 1.5em; }
+.next { display: none; margin-top: 22px; gap: 10px; flex-direction: column; }
+.next.show { display: flex; }
+.next a { text-align: center; text-decoration: none; padding: 14px; border-radius: 980px; font-weight: 500; }
+.next a.go { background: var(--ledger); color: #fff; }
+.next a.go:hover { background: var(--ledger-hover); }
+.next a.again { color: var(--ledger); background: var(--fill); }
+
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+.step {
+    display: grid; grid-template-columns: 48px 1fr; column-gap: 20px;
+    padding: 22px 0; border-bottom: 1px solid var(--rule);
+}
+.step:first-child { padding-top: 0; }
+.step:last-child { border-bottom: 0; padding-bottom: 0; }
+.num {
+    grid-row: span 3; width: 48px; height: 48px; border-radius: 50%;
+    display: grid; place-items: center; font: 600 19px/1 var(--display);
+    background: var(--fill); color: var(--faint);
+}
+.step.active .num { background: var(--ledger-soft); color: var(--ledger); box-shadow: inset 0 0 0 2px var(--ledger); }
+.step.done .num { background: var(--ledger); color: #fff; }
+.step-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.step-head h3 { margin: 0; font-size: 19px; font-weight: 600; }
+.step-head .rule-text { color: var(--muted); font-size: 14px; }
+.count { font-variant-numeric: tabular-nums; font-size: 14px; color: var(--muted); }
+.bar { height: 6px; border-radius: 3px; background: var(--fill); margin: 14px 0 10px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--ledger); border-radius: 3px; transition: width .2s linear; }
+.step.off { opacity: .45; }
+.step.off .bar { visibility: hidden; }
+.result { font-size: 14px; color: var(--muted); min-height: 1.5em; }
+.result b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.summary { margin-top: 36px; padding-top: 28px; border-top: 1px solid var(--rule); display: none; }
+.summary.show { display: block; }
+.totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin: 0 0 28px; }
+.totals > div { background: var(--paper); border-radius: 14px; padding: 14px 16px; }
+.totals dt { font-size: 13px; color: var(--muted); }
+.totals dd { margin: 2px 0 0; font: 600 28px/1.1 var(--display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.totals dd small { font-size: 14px; font-weight: 400; color: var(--muted); }
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 10px; border-bottom: 1px solid var(--rule); }
+th:first-child, td:first-child { text-align: left; padding-left: 0; white-space: nowrap; }
+th { font-weight: 500; color: var(--muted); }
+.saved { margin: 0 0 24px; padding: 4px 16px; list-style: none; font-size: 13px; background: var(--paper); border-radius: 14px; }
+.saved li { display: grid; grid-template-columns: 150px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--rule); }
+.saved li:last-child { border-bottom: 0; }
+.saved span { color: var(--muted); }
+.saved code { font: 12px/1.5 var(--mono); word-break: break-all; user-select: all; }
+@media (max-width: 600px) { .saved li { grid-template-columns: 1fr; gap: 2px; } }
+.carried { margin: -8px 0 24px; max-width: 70ch; }
+.carried:empty { display: none; }
+
+.error { background: var(--stamp-soft); color: var(--stamp); border-radius: 14px; padding: 14px 16px; margin-bottom: 20px; display: none; }
+.error.show { display: block; }
+
+@media (max-width: 860px) {
+    .page { padding: 32px 16px 64px; }
+    h1 { font-size: 36px; }
+    header p { font-size: 17px; }
+    .layout { grid-template-columns: 1fr; gap: 16px; }
+    .source, .layout > section { padding: 22px 20px; border-radius: 18px; }
+}
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+    <header>
+        <a class="crumb" href="/">Projects</a>
+        <h1 id="title">New project</h1>
+        <p>Every line of the file is one message. Messages with the same kinds of values (numbers, dates, ids) in the same order become one pattern, and you label each pattern once.</p>
+    </header>
+
+    <div class="layout">
+        <form class="source" id="form">
+            <p class="again" id="again" hidden></p>
+            <label class="name-field" for="name">Project name
+                <input id="name" maxlength="120" autocomplete="off" placeholder="Named after the file when left empty">
+            </label>
+            <h2>Messages</h2>
+            <label class="drop" id="drop">
+                <input type="file" id="file" accept=".txt,.csv,.log,text/*">
+                <strong id="fileName">Choose a text file</strong>
+                <span id="fileInfo">or drop it here</span>
+            </label>
+            <ul class="preview" id="preview" hidden></ul>
+
+            <button class="run" id="run" type="submit" disabled>Seed</button>
+            <div class="next" id="next"><a class="go" id="go" href="/">Label this project</a><a class="again" href="/seed.html">Start another project</a></div>
+            <p class="hint" id="hint">Choose a file to start.</p>
+        </form>
+
+        <section>
+            <div class="error" id="error" role="alert"></div>
+            <ol class="steps" id="steps"></ol>
+
+            <div class="summary" id="summary" aria-live="polite">
+                <h2>Seeding summary</h2>
+                <dl class="totals" id="totals"></dl>
+                <p class="carried" id="carried"></p>
+                <h2>Result file</h2>
+                <ul class="saved" id="saved"></ul>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script src="/classifier.js"></script>
+<script>
+// The two stages seed() reports progress for.
+const STEPS = [
+    { key: 'WORD_TO_NUM', title: 'Read words', rule: 'Every line' },
+    { key: 'GROUP', title: 'Group by value order', rule: 'Same values in the same order' },
+];
+
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString();
+let text = '';
+
+// Step rows, one per stage.
+function drawSteps() {
+    $('steps').innerHTML = STEPS.map((s, i) => `
+        <li class="step" id="s-${s.key}">
+            <span class="num" aria-hidden="true">${i + 1}</span>
+            <div class="step-head"><h3>${s.title}</h3><span class="rule-text">${s.rule}</span></div>
+            <div class="bar" role="progressbar" aria-label="${s.title}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+            <div class="result"><span class="count">Waiting</span></div>
+        </li>`).join('');
+}
+drawSteps();
+
+// File: read it, count lines, show the first few.
+// Default project name, the same as the server's: file name without extension and the date time, messages_20261027-140512.
+function defaultName(file, date = new Date()) {
+    const pad = n => String(n).padStart(2, '0');
+    const stamp = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+    return `${file.replace(/\.[^.]+$/, '')}_${stamp}`;
+}
+let fileName = '';
+let nameTyped = false;      // a name the person typed is kept when another file is chosen
+$('name').addEventListener('input', () => { nameTyped = Boolean($('name').value.trim()); });
+
+async function useFile(file) {
+    if (!file) return;
+    text = await file.text();
+    fileName = file.name;
+    if (!nameTyped) $('name').value = defaultName(file.name);
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    $('fileName').textContent = file.name;
+    $('fileInfo').textContent = `${fmt(lines.length)} messages. Choose another file to replace it.`;
+    const shown = lines.slice(0, 4).map(l => `<li>${escape(l)}</li>`);
+    if (lines.length > 4) shown.push(`<li class="more">and ${fmt(lines.length - 4)} more</li>`);
+    $('preview').innerHTML = shown.join('');
+    $('preview').hidden = !lines.length;
+    $('run').disabled = !lines.length;
+    $('hint').textContent = lines.length ? '' : 'This file has no lines with text. Choose another one.';
+}
+const escape = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+$('file').addEventListener('change', e => useFile(e.target.files[0]));
+const drop = $('drop');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); useFile(e.dataTransfer.files[0]); });
+
+// seed.html?project=<id> seeds that project again: its word-to-num, patterns, labels and CFMRes are replaced.
+const againId = new URLSearchParams(location.search).get('project');
+let againProject = null;
+async function loadAgain() {
+    const res = await fetch(`/api/projects/${encodeURIComponent(againId)}/leaves`);
+    const body = await res.json();
+    if (!res.ok) { location.replace('/seed.html'); return; }
+    againProject = body.project;
+    const labelled = body.leaves.filter(l => l.labels.length).length;
+    document.title = `Seed ${againProject.name} again - CFM2`;
+    $('title').textContent = 'Seed again';
+    $('name').value = againProject.name;
+    nameTyped = true;
+    $('run').textContent = 'Seed again';
+    $('again').hidden = false;
+    $('again').textContent = `Seeding "${againProject.name}" again replaces its word-to-num, its ${body.leaves.length} patterns`
+        + `${againProject.cfmRes ? ' and its CFMRes' : ''}.${labelled ? ` Labels are kept for new patterns with the same values in the same order as a labelled one.` : ''}`;
+}
+if (againId) loadAgain();
+
+
+// Progress of one stage.
+function setStep(key, done, total, label) {
+    const row = $(`s-${key}`);
+    if (!row) return;
+    const pct = total ? Math.min(100, Math.round(done / total * 100)) : 0;
+    row.classList.add('active');
+    row.querySelector('.bar i').style.width = pct + '%';
+    row.querySelector('.bar').setAttribute('aria-valuenow', pct);
+    row.querySelector('.result').innerHTML = label ?? `<span class="count">${fmt(done)} of ${fmt(total)} messages</span>`;
+}
+function finishStep(key, html) {
+    const row = $(`s-${key}`);
+    row.classList.remove('active');
+    row.classList.add('done');
+    row.querySelector('.bar i').style.width = '100%';
+    row.querySelector('.result').innerHTML = html;
+}
+
+$('form').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (againProject) {
+        const ask = againProject.cfmRes
+            ? `Seed "${againProject.name}" again? Its word-to-num is replaced, so its CFMRes no longer fits. The CFMRes and its placeholders (patterns.json, labels.dat and placeholder.dat) are downloaded now so you keep a copy.`
+            : `Seed "${againProject.name}" again? Its patterns are replaced; labels are kept where the values are the same.`;
+        if (!confirm(ask)) return;
+        if (againProject.cfmRes) {
+            try {
+                await downloadCFMRes(againProject.id);
+            } catch (err) {
+                $('error').textContent = `Not seeded: the CFMRes could not be downloaded first (${err.message}). Nothing was changed.`;
+                $('error').classList.add('show');
+                return;
+            }
+        }
+    }
+
+    drawSteps();
+    $('error').classList.remove('show');
+    $('summary').classList.remove('show');
+    $('run').disabled = true;
+    $('run').dataset.busy = '1';
+    $('hint').textContent = 'Seeding. Keep this page open.';
+    const started = performance.now();
+    let current = null;
+
+    try {
+        const res = await fetch('/api/seed', { method: 'POST', body: JSON.stringify({ text, name: $('name').value, file: fileName, project: againProject?.id }) });
+        if (!res.ok) throw new Error((await res.json()).error);
+        const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+        let buffer = '';
+        for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += value;
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+            for (const line of lines) if (line) current = handle(JSON.parse(line), current, started);
+        }
+    } catch (err) {
+        $('error').textContent = `Seeding stopped: ${err.message}. Nothing after the last finished step was saved.`;
+        $('error').classList.add('show');
+        $('hint').textContent = '';
+    } finally {
+        $('run').disabled = !text;
+        delete $('run').dataset.busy;
+    }
+});
+
+// One ndjson line from /api/seed. Returns the stage now running.
+function handle(msg, current, started) {
+    if (msg.type === 'error') throw new Error(msg.error);
+    if (msg.type === 'start') {
+        $('name').value = msg.project.name;
+        $('go').href = `/label.html?project=${msg.project.id}`;
+        return null;
+    }
+    if (msg.type === 'progress') {
+        if (current && current !== msg.stage) $(`s-${current}`).classList.remove('active');
+        setStep(msg.stage, msg.done, msg.total);
+        return msg.stage;
+    }
+    if (msg.type === 'done') { showSummary(msg, (performance.now() - started) / 1000); return null; }
+    return current;
+}
+
+function showSummary({ wordToNum: t, rounds, carried }, seconds) {
+    finishStep('WORD_TO_NUM', `<b>${fmt(t.messages)}</b> messages`);
+    const { summary: s, file } = rounds[0];
+    finishStep('GROUP', `<b>${fmt(s.branches)}</b> patterns, the largest has <b>${fmt(s.largestBranch)}</b> messages`);
+
+    $('totals').innerHTML = [
+        ['Messages', fmt(t.messages)],
+        ['Patterns to label', fmt(s.branches)],
+        ['With one message', fmt(s.singleBranches)],
+        ...(carried ? [['Labels kept', `${fmt(carried.patterns)} <small>patterns</small>`]] : []),
+        ['Time', seconds < 1 ? `${Math.round(seconds * 1000)} ms` : `${seconds.toFixed(1)} s`],
+    ].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+    $('carried').textContent = !carried ? ''
+        : `Patterns with the same values in the same order as before kept their labels: ${fmt(carried.patterns)} patterns, ${fmt(carried.messages)} messages.`
+        + (carried.conflicts.length ? ` ${fmt(carried.conflicts.length)} had different labels before and need a label again.` : '');
+    $('saved').innerHTML = `<li><span>Patterns</span><code>${escape(file)}</code></li>`;
+
+
+    $('summary').classList.add('show');
+    $('hint').textContent = 'Seeded. The project is saved and ready to label.';
+    // One seed is one project: the form is done, the next step is labelling it.
+    for (const el of $('form').querySelectorAll('input, button, summary')) el.disabled = true;
+    $('drop').style.pointerEvents = 'none';
+    $('run').hidden = true;
+    $('next').classList.add('show');
+    $('go').focus();
+}
+</script>
+</body>
+</html>
