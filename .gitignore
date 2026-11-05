@@ -4,6 +4,11 @@ node_modules/
 .DS_Store
 dist/
 
-# Local data: your messages and projects
+# Local data: your messages, projects, word-to-num and CFMRes files, wherever they are
 projects/
 messages.txt
+wordtonum/
+CFMRes/
+*.dat
+*.data
+*.patterns.json
