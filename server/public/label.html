@@ -217,7 +217,7 @@ const slot = p => p.replace(/[<>]/g, '').toLowerCase().replace(/_/g, ' ');
 
 const projectId = new URLSearchParams(location.search).get('project');
 const api = `/api/projects/${encodeURIComponent(projectId)}`;
-let leaves = [];        // the project's leaves, biggest groups first
+let leaves = [];
 let projectName = '';
 const picked = new Set(); // paths of the ticked leaves: one is shown on its own, more are labelled together
 let show = 'all';       // list filter: all, todo (not labelled) or done (labelled)
@@ -244,7 +244,6 @@ async function load() {
     drawDetail(false);
 }
 
-// Leaves shown with the search and the All / Not labelled / Labelled filter applied.
 function visible() {
     const q = $('filter').value.trim().toLowerCase();
     const wanted = l => show === 'all' || (show === 'done') === l.labels.length > 0 || kept.has(l.path);
@@ -284,7 +283,6 @@ function pickOnly(path) {
     lastPick = path;
 }
 
-// Patterns labelled out of all; at 100% the CFMRes can be exported.
 function drawCount() {
     const done = leaves.filter(l => l.labels.length).length;
     const pct = leaves.length ? Math.floor(done / leaves.length * 100) : 0;
@@ -293,7 +291,6 @@ function drawCount() {
     $('export').hidden = !leaves.length || done < leaves.length;
 }
 
-// Writes the CFMRes: patterns.json and labels.dat.
 $('export').addEventListener('click', async () => {
     $('export').disabled = true;
     const box = $('cfmRes');
@@ -317,7 +314,6 @@ $('export').addEventListener('click', async () => {
 
 $('check').addEventListener('click', () => openClassifier(projectId, projectName));
 
-// Every label used so far, offered while typing; the label tree is drawn with it.
 function drawKnown() {
     const all = [...new Set(leaves.flatMap(l => l.labels))].sort();
     $('known').innerHTML = all.map(x => `<option value="${escape(x)}">`).join('');
@@ -326,7 +322,7 @@ function drawKnown() {
 
 // Label tree: a label sits under the smallest label that all its patterns also have (a narrow label under a broader one).
 let treeLabel = null;      // label whose patterns were selected from the tree
-const treeOpen = new Set(); // keys of open tree items
+const treeOpen = new Set();
 let treeFocus = null;      // key of the item that takes the keyboard focus (roving tabindex)
 
 function drawTree() {
@@ -386,7 +382,6 @@ function drawTree() {
     }
 }
 
-// Tree items that can be seen (their parents are open), in order.
 const shownItems = () => [...$('tree').querySelectorAll('[role=treeitem]')].filter(el => el.offsetParent !== null);
 
 function focusItem(el) {
@@ -554,7 +549,6 @@ function drawDetail(focus = true, fresh) {
     if (focus) $('label').focus();
 }
 
-// Adds the typed label to every ticked pattern, in one request.
 async function addLabel(list) {
     const input = $('label');
     const label = input.value.trim();
@@ -583,7 +577,6 @@ async function addLabel(list) {
     }
 }
 
-// Takes a label off every ticked pattern that has it, in one request.
 async function removeLabel(list, button) {
     const label = button.dataset.label;
     const paths = list.filter(l => l.labels.includes(label)).map(l => l.path);

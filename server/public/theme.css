@@ -50,7 +50,6 @@ input, textarea { font: inherit; letter-spacing: inherit; }
 input:focus, textarea:focus { outline: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 25%, transparent); border-color: var(--ledger) !important; }
 ::selection { background: color-mix(in srgb, var(--ledger) 25%, transparent); }
 
-/* Glass bar on top of the page */
 .glass {
     position: sticky; top: 0; z-index: 10;
     background: var(--glass); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px);

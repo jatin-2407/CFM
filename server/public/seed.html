@@ -171,7 +171,6 @@ th { font-weight: 500; color: var(--muted); }
 
 <script src="/classifier.js"></script>
 <script>
-// The two stages seed() reports progress for.
 const STEPS = [
     { key: 'WORD_TO_NUM', title: 'Read words', rule: 'Every line' },
     { key: 'GROUP', title: 'Group by value order', rule: 'Same values in the same order' },
@@ -181,7 +180,6 @@ const $ = id => document.getElementById(id);
 const fmt = n => n.toLocaleString();
 let text = '';
 
-// Step rows, one per stage.
 function drawSteps() {
     $('steps').innerHTML = STEPS.map((s, i) => `
         <li class="step" id="s-${s.key}">
@@ -193,7 +191,6 @@ function drawSteps() {
 }
 drawSteps();
 
-// File: read it, count lines, show the first few.
 // Default project name, the same as the server's: file name without extension and the date time, messages_20261027-140512.
 function defaultName(file, date = new Date()) {
     const pad = n => String(n).padStart(2, '0');
@@ -248,7 +245,6 @@ async function loadAgain() {
 if (againId) loadAgain();
 
 
-// Progress of one stage.
 function setStep(key, done, total, label) {
     const row = $(`s-${key}`);
     if (!row) return;
@@ -353,7 +349,6 @@ function showSummary({ wordToNum: t, rounds, carried }, seconds) {
 
     $('summary').classList.add('show');
     $('hint').textContent = 'Seeded. The project is saved and ready to label.';
-    // One seed is one project: the form is done, the next step is labelling it.
     for (const el of $('form').querySelectorAll('input, button, summary')) el.disabled = true;
     $('drop').style.pointerEvents = 'none';
     $('run').hidden = true;
