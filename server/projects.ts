@@ -12,7 +12,6 @@ export const PROJECTS_DIR = process.env.CFM2_PROJECTS_DIR || path.join(ROOT, 'pr
 export const readJson = (file: string): any => JSON.parse(fs.readFileSync(file, 'utf8'));
 export const writeJson = (file: string, value: unknown): void => fs.writeFileSync(file, JSON.stringify(value, null, 2));
 
-// The folder of a project id, or null if there is no such project.
 export const projectDir = (id: string): string | null =>
     PROJECT_ID.test(id) && fs.existsSync(path.join(PROJECTS_DIR, id, ProjectFile.PROJECT)) ? path.join(PROJECTS_DIR, id) : null;
 
@@ -24,13 +23,11 @@ export const placeholderFile = (dir: string): string => path.join(wordToNumDir(d
 export const hasWordToNum = (dir: string): boolean => fs.existsSync(path.join(wordToNumDir(dir), WordToNumFile.META));
 export const cfmResDir = (dir: string): string => path.join(dir, ProjectFile.CFM_RES);
 
-// When the CFMRes was written, or null if there is none.
 export function cfmResDate(dir: string): string | null {
     const file = path.join(cfmResDir(dir), CFMResFile.PATTERNS);
     return fs.existsSync(file) ? fs.statSync(file).mtime.toISOString() : null;
 }
 
-// The newest groups file of a project, or null.
 export function latestGroups(dir: string): string | null {
     const file = fs.readdirSync(dir).filter(f => f.startsWith(GROUPS_PREFIX)).sort().pop();
     return file ? path.join(dir, file) : null;
@@ -38,24 +35,20 @@ export function latestGroups(dir: string): string | null {
 
 export const isLeaf = (node: Group | Tree): node is Group => Array.isArray(node.pattern);
 
-// Every leaf of a tree, with its dotted path.
 export const leavesOf = (tree: Tree, prefix: string[] = []): Leaf[] => Object.entries(tree).flatMap(([id, node]) => isLeaf(node)
     ? [{ path: [...prefix, id].join('.'), pattern: node.pattern, messages: node.messages, labels: node.labels || [] }]
     : leavesOf(node, [...prefix, id]));
 
-// The leaves of a project's newest groups file.
 export function projectLeaves(dir: string): Leaf[] {
     const file = latestGroups(dir);
     return file ? leavesOf(readJson(file).tree) : [];
 }
 
-// A project with its labelling progress, for the projects list.
 export function summaryOf(dir: string) {
     const leaves = projectLeaves(dir);
     return { ...projectOf(dir), leaves: leaves.length, labelledLeaves: leaves.filter(leaf => leaf.labels.length).length, cfmRes: cfmResDate(dir) };
 }
 
-// One message per non-empty line.
 export const linesOf = (text: string): string[] => text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
 
 export const cleanName = (name: unknown): string => typeof name === 'string' ? name.trim().slice(0, NAME_MAX_LENGTH) : '';

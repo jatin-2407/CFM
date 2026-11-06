@@ -15,7 +15,6 @@ export function labelsByPattern(leaves: Leaf[]): LabelsByPattern {
     return byPattern;
 }
 
-// Gives each leaf of a new groups file the labels its pattern had before.
 export function carryLabels(file: string, byPattern: LabelsByPattern) {
     const result: { tree: Record<string, Group> } = readJson(file);
     const carried = { patterns: 0, messages: 0, conflicts: [] as string[][] };
@@ -32,7 +31,6 @@ export function carryLabels(file: string, byPattern: LabelsByPattern) {
     return carried;
 }
 
-// Per label: how many patterns and messages have it.
 export function perLabel(leaves: Leaf[]) {
     const labels = new Map<string, { label: string; patterns: number; messages: number }>();
     for (const leaf of leaves) for (const label of leaf.labels) {
@@ -44,7 +42,6 @@ export function perLabel(leaves: Leaf[]) {
     return [...labels.values()];
 }
 
-// Leaves -> CFMRes: each leaf's placeholders as nums, with its labels.
 export const toCFMRes = (leaves: Leaf[], placeholderNums: WordToNumMap): CFMRes => ({
     patterns: leaves.map(leaf => ({ nums: leaf.pattern.map(p => placeholderNums.get(p.toLowerCase()) || 0), labels: leaf.labels })),
 });

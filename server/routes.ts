@@ -46,7 +46,6 @@ function classifierOf(dir: string): Classifier {
     return classifier;
 }
 
-// Adds or removes a label on one leaf ({ path }) or many ({ paths }), then writes the groups file once.
 async function changeLabels(req: IncomingMessage, res: ServerResponse, dir: string, change: (labels: string[], label: string) => void) {
     const { path: leafPath, paths, label } = await readBody(req);
     const many = Array.isArray(paths);
@@ -65,7 +64,6 @@ async function changeLabels(req: IncomingMessage, res: ServerResponse, dir: stri
     send(res, 200, { label: label.trim(), leaves: leaves.map(([p, leaf]) => ({ path: p, labels: leaf!.labels })) });
 }
 
-// Sends a project file as a download, or 404.
 function sendProjectFile(res: ServerResponse, dir: string, file: string, missing: string): void {
     if (!fs.existsSync(file)) return send(res, 404, { error: missing });
     download(res, file, projectOf(dir).name);

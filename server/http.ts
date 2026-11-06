@@ -4,7 +4,6 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import { BODY_LIMIT, CONTENT_TYPES } from './const';
 import type { Body } from './types';
 
-// An error that answers with its own status (400, 404, ...).
 export class HttpError extends Error {
     constructor(readonly status: number, message: string) { super(message); }
 }
@@ -32,7 +31,6 @@ export function readBody(req: IncomingMessage): Promise<Body> {
     });
 }
 
-// Sends a file as a download named <name>.<file name>.
 export function download(res: ServerResponse, file: string, name: string): void {
     const safe = name.replace(/[^\w.-]+/g, '_');
     res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename="${safe}.${path.basename(file)}"` });
