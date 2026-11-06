@@ -1,4 +1,3 @@
-// Labels on the groups of a seed: reading its leaves, adding or removing labels, carrying them to a new seed.
 import fs from 'fs';
 import type { CFMRes, Group, LabelsByPattern, Leaf, Tree, WordToNumMap } from './types';
 
@@ -7,22 +6,18 @@ const writeTree = (file: string, result: { tree: Tree }): void => fs.writeFileSy
 
 export const isLeaf = (node: Group | Tree): node is Group => Array.isArray(node.pattern);
 
-// Every leaf of a tree, with its dotted path.
 export const leavesOf = (tree: Tree, prefix: string[] = []): Leaf[] => Object.entries(tree).flatMap(([id, node]) => isLeaf(node)
     ? [{ path: [...prefix, id].join('.'), pattern: node.pattern, messages: node.messages, labels: node.labels || [] }]
     : leavesOf(node, [...prefix, id]));
 
 export const readLeaves = (file: string): Leaf[] => leavesOf(readTree(file).tree);
 
-// The leaf at a dotted path, following only the tree's own keys.
 function leafAt(tree: Tree, leafPath: string): Group | undefined {
     let node: Group | Tree | undefined = tree;
     for (const id of leafPath.split('.')) node = node && !isLeaf(node) && Object.hasOwn(node, id) ? node[id] : undefined;
     return node && isLeaf(node) ? node : undefined;
 }
 
-// Adds a label to the leaves at paths, or takes it off with remove, writing the file once.
-// Nothing changes when a path is not a leaf: that path is returned as missing.
 export function setLabel(file: string, paths: string[], label: string, remove = false): { missing?: string; leaves: { path: string; leaf: Group }[] } {
     const result = readTree(file);
     const found = paths.map(path => ({ path, leaf: leafAt(result.tree, path) }));
@@ -39,7 +34,6 @@ export function setLabel(file: string, paths: string[], label: string, remove = 
     return { leaves };
 }
 
-// Pattern -> its labels, to carry to a new seed. A pattern whose old leaves disagree gets null (left to the person).
 export function labelsByPattern(leaves: Leaf[]): LabelsByPattern {
     const byPattern: LabelsByPattern = new Map();
     for (const leaf of leaves) {
@@ -52,7 +46,6 @@ export function labelsByPattern(leaves: Leaf[]): LabelsByPattern {
     return byPattern;
 }
 
-// Gives each leaf of a new groups file the labels its pattern had before.
 export function carryLabels(file: string, byPattern: LabelsByPattern) {
     const result = readTree(file);
     const carried = { patterns: 0, messages: 0, conflicts: [] as string[][] };
@@ -69,7 +62,6 @@ export function carryLabels(file: string, byPattern: LabelsByPattern) {
     return carried;
 }
 
-// Per label: how many patterns and messages have it.
 export function perLabel(leaves: Leaf[]) {
     const labels = new Map<string, { label: string; patterns: number; messages: number }>();
     for (const leaf of leaves) for (const label of leaf.labels) {
@@ -81,7 +73,6 @@ export function perLabel(leaves: Leaf[]) {
     return [...labels.values()];
 }
 
-// Labelled leaves -> CFMRes: each leaf's placeholders as nums, with its labels.
 export const toCFMRes = (leaves: Leaf[], placeholderNums: WordToNumMap): CFMRes => ({
     patterns: leaves.map(leaf => ({ nums: leaf.pattern.map(p => placeholderNums.get(p.toLowerCase()) || 0), labels: leaf.labels })),
 });
