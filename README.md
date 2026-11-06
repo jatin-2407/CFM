@@ -153,6 +153,7 @@ core/      the engine: no HTTP, no HTML
   placeholder.ts        runs the rules on a word
   WordToNum.ts          splits strings into words and gives each a num
   index.ts              seed(): strings → patterns
+  labels.ts             adds and removes labels, carries them to a new seed
   CFMRes.ts             saves and loads the CFMRes
   Classifier.ts         classifies a string
   config.ts, const.ts, types.ts, Utils.ts

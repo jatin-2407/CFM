@@ -1,16 +1,17 @@
 import fs from 'fs';
 import path from 'path';
 import { CFMResFile, GROUPS_PREFIX, WordToNumFile } from '../core/const';
-import type { Group } from '../core/types';
+import { readLeaves } from '../core/labels';
+import type { Leaf } from '../core/types';
 import { NAME_MAX_LENGTH, PROJECT_ID, ProjectFile } from './const';
-import type { Leaf, Project, Tree } from './types';
+import type { Project } from './types';
 
 // The compiled server runs from dist/server/, so the repo is two folders up.
 export const ROOT = path.join(__dirname, '..', '..');
 export const PROJECTS_DIR = process.env.CFM2_PROJECTS_DIR || path.join(ROOT, 'projects');
 
-export const readJson = (file: string): any => JSON.parse(fs.readFileSync(file, 'utf8'));
-export const writeJson = (file: string, value: unknown): void => fs.writeFileSync(file, JSON.stringify(value, null, 2));
+const readJson = (file: string): any => JSON.parse(fs.readFileSync(file, 'utf8'));
+const writeJson = (file: string, value: unknown): void => fs.writeFileSync(file, JSON.stringify(value, null, 2));
 
 export const projectDir = (id: string): string | null =>
     PROJECT_ID.test(id) && fs.existsSync(path.join(PROJECTS_DIR, id, ProjectFile.PROJECT)) ? path.join(PROJECTS_DIR, id) : null;
@@ -33,15 +34,9 @@ export function latestGroups(dir: string): string | null {
     return file ? path.join(dir, file) : null;
 }
 
-export const isLeaf = (node: Group | Tree): node is Group => Array.isArray(node.pattern);
-
-export const leavesOf = (tree: Tree, prefix: string[] = []): Leaf[] => Object.entries(tree).flatMap(([id, node]) => isLeaf(node)
-    ? [{ path: [...prefix, id].join('.'), pattern: node.pattern, messages: node.messages, labels: node.labels || [] }]
-    : leavesOf(node, [...prefix, id]));
-
 export function projectLeaves(dir: string): Leaf[] {
     const file = latestGroups(dir);
-    return file ? leavesOf(readJson(file).tree) : [];
+    return file ? readLeaves(file) : [];
 }
 
 export function summaryOf(dir: string) {

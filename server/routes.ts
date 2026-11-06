@@ -16,12 +16,11 @@ import { saveCFMRes } from '../core/CFMRes';
 import { Classifier } from '../core/Classifier';
 import { arrayMessages, newId } from '../core/Utils';
 import { CFMResFile } from '../core/const';
-import type { Group } from '../core/types';
+import { carryLabels, labelsByPattern, perLabel, setLabel, toCFMRes } from '../core/labels';
 import { HttpError, download, readBody, send } from './http';
-import { carryLabels, labelsByPattern, perLabel, toCFMRes } from './labels';
 import {
-    PROJECTS_DIR, cfmResDate, cfmResDir, cleanName, defaultName, hasWordToNum, isLeaf, latestGroups, linesOf, placeholderFile,
-    projectDir, projectLeaves, projectOf, readJson, restoreFiles, saveProject, stashFiles, summaryOf, wordToNumDir, writeJson,
+    PROJECTS_DIR, cfmResDate, cfmResDir, cleanName, defaultName, hasWordToNum, latestGroups, linesOf, placeholderFile,
+    projectDir, projectLeaves, projectOf, restoreFiles, saveProject, stashFiles, summaryOf, wordToNumDir,
 } from './projects';
 import { ProjectFile, SeedEvent } from './const';
 import type { Handler, Project } from './types';
@@ -46,7 +45,7 @@ function classifierOf(dir: string): Classifier {
     return classifier;
 }
 
-async function changeLabels(req: IncomingMessage, res: ServerResponse, dir: string, change: (labels: string[], label: string) => void) {
+async function changeLabels(req: IncomingMessage, res: ServerResponse, dir: string, remove: boolean) {
     const { path: leafPath, paths, label } = await readBody(req);
     const many = Array.isArray(paths);
     const list: unknown[] = many ? paths : [leafPath];
@@ -54,14 +53,11 @@ async function changeLabels(req: IncomingMessage, res: ServerResponse, dir: stri
         return send(res, 400, { error: 'path (or paths) and label are required' });
     }
     const file = latestGroups(dir);
-    const result = file ? readJson(file) : { tree: {} };
-    const leaves = (list as string[]).map(p => [p, p.split('.').reduce<any>((node, id) => node?.[id], result.tree)] as [string, Group | undefined]);
-    const missing = leaves.find(([, leaf]) => !leaf || !isLeaf(leaf));
-    if (missing) return send(res, 404, { error: `no leaf at ${missing[0]}` });
-    for (const [, leaf] of leaves) change(leaf!.labels = leaf!.labels || [], label.trim());
-    writeJson(file!, result);
-    if (!many) return send(res, 200, { path: leafPath, ...leaves[0][1] });
-    send(res, 200, { label: label.trim(), leaves: leaves.map(([p, leaf]) => ({ path: p, labels: leaf!.labels })) });
+    if (!file) return send(res, 404, { error: `no leaf at ${list[0]}` });
+    const { missing, leaves } = setLabel(file, list as string[], label.trim(), remove);
+    if (missing) return send(res, 404, { error: `no leaf at ${missing}` });
+    if (!many) return send(res, 200, { path: leafPath, ...leaves[0].leaf });
+    send(res, 200, { label: label.trim(), leaves: leaves.map(({ path, leaf }) => ({ path, labels: leaf.labels })) });
 }
 
 function sendProjectFile(res: ServerResponse, dir: string, file: string, missing: string): void {
@@ -140,13 +136,8 @@ const routes: Record<string, Handler> = {
         send(res, 200, { project: { ...projectOf(dir), cfmRes: cfmResDate(dir) }, leaves: projectLeaves(dir) });
     },
 
-    'POST /api/projects/:id/label': (req, res, dir) => changeLabels(req, res, dir, (labels, label) => {
-        if (!labels.includes(label)) labels.push(label);
-    }),
-
-    'DELETE /api/projects/:id/label': (req, res, dir) => changeLabels(req, res, dir, (labels, label) => {
-        if (labels.includes(label)) labels.splice(labels.indexOf(label), 1);
-    }),
+    'POST /api/projects/:id/label': (req, res, dir) => changeLabels(req, res, dir, false),
+    'DELETE /api/projects/:id/label': (req, res, dir) => changeLabels(req, res, dir, true),
 
     'POST /api/projects/:id/cfmres': (req, res, dir) => {
         if (!latestGroups(dir)) return send(res, 400, { error: 'this project has no patterns to build a CFMRes from' });

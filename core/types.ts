@@ -30,6 +30,9 @@ export interface ClassifyResult {
 
 export interface Converted { original: string; nums: number[]; placeholders: string[] }
 export interface Group { pattern: string[]; messages: string[]; labels?: string[] }
+export type Tree = { [id: string]: Group | Tree };
+export interface Leaf { path: string; pattern: string[]; messages: string[]; labels: string[] }
+export type LabelsByPattern = Map<string, { labels: string[]; key: string } | null>;
 export interface Summary { date: string; processed: number; branches: number; singleBranches: number; largestBranch: number }
 export interface Progress { stage: Stage; done: number; total?: number }
 export interface SeedOptions {
